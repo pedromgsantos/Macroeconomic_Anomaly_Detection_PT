@@ -6,7 +6,6 @@ seaborn
 scikit-learn
 statsmodels
 plotly
-pystan==2.19.1.1
 prophet
 holidays==0.24
 streamlit
