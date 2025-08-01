@@ -47,7 +47,7 @@ anomalias_macro_pt/
 │
 ├── .gitignore
 ├── app.py # Script principal do dashboard Streamlit
-├── environment.yml # Ficheiro para recriar o ambiente Conda
+├── environment_dev.yml # Ficheiro para recriar o ambiente Conda
 └── requirements.txt # Ficheiro para instalar dependências com Pip
 ```
 
@@ -78,18 +78,12 @@ Para executar o dashboard interativo na sua máquina local, siga os passos abaix
     cd anomalias_macro_pt
     ```
 
-2.  **Configurar o Ambiente (Conda):**
-    ```bash
-    conda env create -f environment.yml
-    conda activate anomalias_macro
-    ```
-
-3.  **Configurar o Ambiente (Pip):**
+2.  **Configurar o Ambiente (Pip):**
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Executar o Dashboard Streamlit:**
+3.  **Executar o Dashboard Streamlit:**
     Com o ambiente ativado, execute o seguinte comando no terminal:
     ```bash
     streamlit run app.py
