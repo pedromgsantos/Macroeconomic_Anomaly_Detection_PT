@@ -74,22 +74,18 @@ Para executar o dashboard interativo na sua máquina local, siga os passos abaix
 ### Passos
 1.  **Clonar o Repositório:**
     ```bash
-    git clone <URL_DO_SEU_REPOSITORIO>
-    cd <NOME_DO_SEU_REPOSITORIO>
+    git clone https://github.com/pedromgsantos/anomalias_macro_pt
+    cd anomalias_macro_pt
     ```
 
-2.  **Configurar o Ambiente (Opção A - Conda):**
-    Esta é a forma recomendada para garantir a total reprodutibilidade.
+2.  **Configurar o Ambiente (Conda):**
     ```bash
     conda env create -f environment.yml
     conda activate anomalias_macro
     ```
 
-3.  **Configurar o Ambiente (Opção B - Pip):**
-    Se não usar Conda, pode criar um ambiente virtual com `venv` e instalar as dependências.
+3.  **Configurar o Ambiente (Pip):**
     ```bash
-    python -m venv venv
-    source venv/bin/activate  # No Windows: venv\Scripts\activate
     pip install -r requirements.txt
     ```
 
