@@ -1,5 +1,5 @@
 pandas
-numpy
+numpy<2.0
 Cython>=0.22
 matplotlib
 seaborn
