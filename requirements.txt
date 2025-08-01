@@ -1,5 +1,6 @@
 pandas
 numpy
+Cython>=0.22
 matplotlib
 seaborn
 scikit-learn
