@@ -1,0 +1,17 @@
+name: anomalias_macro
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - statsmodels
+  - plotly
+  - pystan=2.19.1.1
+  - prophet=1.1.1
+  - ipykernel
+  - jupyterlab
+  - holidays=0.24

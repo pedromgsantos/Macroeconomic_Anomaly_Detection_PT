@@ -1,0 +1,28 @@
+# Ambientes Virtuais
+venv/
+/venv/
+env/
+/env/
+.env/
+/.env/
+
+# Ficheiros de Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Ficheiros de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Ficheiros de IDE
+.idea/
+.vscode/
+
+# Ficheiros de dependências
+pip-freeze.txt
+requirements.txt
+# Se gerir depend
