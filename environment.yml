@@ -15,3 +15,4 @@ dependencies:
   - ipykernel
   - jupyterlab
   - holidays=0.24
+  - streamlit
