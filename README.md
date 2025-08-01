@@ -1,3 +1,11 @@
+## 🌐 Ver em funcionamento
+
+Visita **anomalias_macro** em:
+
+➡️ [anomaliasmacropt.streamlit.app](https://anomaliasmacropt.streamlit.app/)  
+
+🧪 Explora o app e começa a detectar anomalias macro com **visualizações interativas** e modelos de previsão em tempo real!
+
 # Deteção de Anomalias na Macroeconomia Portuguesa
 
 ## 🎯 Objetivo
