@@ -11,5 +11,3 @@ streamlit
 prophet==1.1.4
 cmdstanpy==1.0.8
 stanio==0.3.0
-pystan==3.7.0
-
