@@ -1,5 +1,5 @@
 # ===================================================================
-# DASHBOARD INTERATIVO - ANÁLISE DE ANOMALIAS MACROECONÓMICAS (v3 - Dinâmico)
+# INTERACTIVE DASHBOARD - MACROECONOMIC ANOMALY ANALYSIS (Dynamic)
 # ===================================================================
 
 import streamlit as st
@@ -12,136 +12,257 @@ from statsmodels.tsa.seasonal import STL
 from prophet import Prophet
 import logging
 
-# Configurar o logger do Prophet para ser menos verboso
-logging.getLogger('cmdstanpy').setLevel(logging.WARNING)
+# Reduce Prophet / cmdstanpy verbosity
+logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Monitorização de Anomalias Macroeconómicas",
+    page_title="Macroeconomic Anomaly Monitoring",
     page_icon="🚨",
     layout="wide"
 )
 
-# --- FUNÇÃO DE CACHE PARA CARREGAR E EXECUTAR OS MODELOS ---
+# --- CACHED FUNCTION: LOAD DATA AND RUN MODELS ---
 @st.cache_data
-def carregar_e_modelar_dados():
-    # 1. Carregar os dados já processados pelo script update_data.py
-    caminho_dados = 'data/dados_processados_trimestrais.csv'
-    df = pd.read_csv(caminho_dados, index_col=0, parse_dates=True)
-    df.index.name = 'data'
-    
-    # Renomear colunas para nomes mais curtos
-    df.rename(columns={
-        'PIB_var_homologa': 'pib',
-        'Credito_Empresas_Total': 'credito_empresas',
-        'Credito_Particulares_Total': 'credito_particulares',
-        'Endividamento_Total': 'endividamento'
-    }, inplace=True)
+def load_and_model_data():
+    """
+    Load processed quarterly data, rename columns, and run all anomaly detection models:
+    - Isolation Forest (multivariate)
+    - STL decomposition (univariate turning points)
+    - Prophet (forecast-based anomalies on GDP)
+    """
+    # 1. Load processed data
+    data_path = "data/dados_processados_trimestrais.csv"
+    df = pd.read_csv(data_path, index_col=0, parse_dates=True)
+    df.index.name = "date"
 
-    # --- 2. Executar Modelos de Deteção de Anomalias ---
+    # Original columns in the CSV:
+    # Date, GDP_YoY_Growth, Total_Corporate_Credit, Total_Household_Credit, Total_Debt
+    # Rename to shorter, more convenient names
+    df.rename(
+        columns={
+            "GDP_YoY_Growth": "gdp",
+            "Total_Corporate_Credit": "corporate_credit",
+            "Total_Household_Credit": "household_credit",
+            "Total_Debt": "total_debt",
+        },
+        inplace=True,
+    )
 
-    # a) Isolation Forest (Sistémico)
+    # --- 2. Run anomaly detection models ---
+
+    # a) Isolation Forest (systemic / multivariate)
+    features = ["gdp", "corporate_credit", "household_credit", "total_debt"]
     scaler = StandardScaler()
-    df_scaled = scaler.fit_transform(df)
-    model_iso = IsolationForest(n_estimators=100, contamination=0.1, random_state=42)
-    df['anomaly_isoforest_pred'] = model_iso.fit_predict(df_scaled)
-    df['anomalia_isoforest'] = df['anomaly_isoforest_pred'].apply(lambda x: 1 if x == -1 else 0)
+    X_scaled = scaler.fit_transform(df[features])
 
-    # b) Decomposição STL (Pontos de Viragem)
-    df['anomalia_stl'] = 0
-    for coluna in ['pib', 'credito_empresas', 'credito_particulares', 'endividamento']:
-        stl = STL(df[coluna], period=4)
-        resultado_stl = stl.fit()
-        residuos = resultado_stl.resid
-        limiar = residuos.std() * 2.5
-        anomalias_stl_idx = residuos[abs(residuos) > limiar].index
-        df.loc[anomalias_stl_idx, 'anomalia_stl'] = 1
+    iso_model = IsolationForest(
+        n_estimators=200,
+        contamination=0.05,  # relatively conservative
+        random_state=42,
+    )
+    df["anomaly_isoforest_raw"] = iso_model.fit_predict(X_scaled)
+    # Map: -1 = anomaly → 1, 1 = normal → 0
+    df["anomaly_isoforest"] = df["anomaly_isoforest_raw"].apply(
+        lambda x: 1 if x == -1 else 0
+    )
 
-    # c) Prophet (Desvio da Previsão no PIB)
-    df_prophet_pib = df[['pib']].reset_index().rename(columns={'data': 'ds', 'pib': 'y'})
-    model_prophet = Prophet(interval_width=0.95, yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
-    model_prophet.fit(df_prophet_pib)
-    forecast = model_prophet.predict(df_prophet_pib[['ds']])
-    df_forecast = forecast.set_index('ds')
-    
-    df['anomalia_prophet'] = ((df['pib'] < df_forecast['yhat_lower']) | (df['pib'] > df_forecast['yhat_upper'])).astype(int)
+    # b) STL decomposition (turning points / univariate)
+    df["anomaly_stl"] = 0
+    for col in features:
+        stl = STL(df[col], period=4)  # quarterly data → period=4
+        stl_result = stl.fit()
+        residuals = stl_result.resid
+        threshold = 2.5 * residuals.std()
 
-    # 3. Calcular a contagem final de anomalias
-    df['contagem_anomalias'] = df[['anomalia_isoforest', 'anomalia_stl', 'anomalia_prophet']].sum(axis=1)
+        anomaly_idx = residuals[residuals.abs() > threshold].index
+        df.loc[anomaly_idx, "anomaly_stl"] = 1
 
-    return df.drop(columns=['anomaly_isoforest_pred'])
+    # c) Prophet (forecast deviation, GDP only)
+    df_prophet = (
+        df[["gdp"]]
+        .reset_index()
+        .rename(columns={"date": "ds", "gdp": "y"})
+    )
 
-# --- CARREGAMENTO E MODELAGEM DOS DADOS ---
-# A função só será re-executada se o ficheiro .csv for alterado.
-df_final = carregar_e_modelar_dados()
+    prophet_model = Prophet(
+        interval_width=0.95,
+        yearly_seasonality=True,
+        weekly_seasonality=False,
+        daily_seasonality=False,
+    )
+    prophet_model.fit(df_prophet)
+    forecast = prophet_model.predict(df_prophet[["ds"]])
+    df_forecast = forecast.set_index("ds")
 
-# --- SIDEBAR DE CONTROLOS ---
-st.sidebar.header("Controlos de Visualização")
+    df["anomaly_prophet"] = (
+        (df["gdp"] < df_forecast["yhat_lower"])
+        | (df["gdp"] > df_forecast["yhat_upper"])
+    ).astype(int)
 
-# Seletor de Variável
-lista_variaveis = {
-    'pib': 'PIB (Variação Homóloga %)',
-    'credito_empresas': 'Crédito a Empresas',
-    'credito_particulares': 'Crédito a Particulares',
-    'endividamento': 'Endividamento Total'
+    # 3. Count how many models flag an anomaly on each date
+    df["anomaly_count"] = df[
+        ["anomaly_isoforest", "anomaly_stl", "anomaly_prophet"]
+    ].sum(axis=1)
+
+    # Return final DataFrame without the raw Isolation Forest label
+    return df.drop(columns=["anomaly_isoforest_raw"])
+
+
+# --- LOAD AND MODEL DATA ---
+# This is recomputed only if the CSV changes
+df_final = load_and_model_data()
+
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("Visualisation Controls")
+
+variable_labels = {
+    "gdp": "GDP YoY Growth (%)",
+    "corporate_credit": "Total Corporate Credit",
+    "household_credit": "Total Household Credit",
+    "total_debt": "Total Non-Financial Sector Debt",
 }
-variavel_selecionada_key = st.sidebar.selectbox(
-    "Selecione a série temporal para visualizar:",
-    options=list(lista_variaveis.keys()),
-    format_func=lambda x: lista_variaveis[x]
+
+selected_variable = st.sidebar.selectbox(
+    "Select the time series to display:",
+    options=list(variable_labels.keys()),
+    format_func=lambda x: variable_labels[x],
 )
 
-# Checkboxes para filtrar modelos
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Exibir anomalias dos modelos:**")
-mostrar_isoforest = st.sidebar.checkbox("Isolation Forest (Sistémica)", value=True)
-mostrar_stl = st.sidebar.checkbox("Decomposição STL (Ponto de Viragem)", value=True)
-mostrar_prophet = st.sidebar.checkbox("Prophet (Desvio da Previsão)", value=True)
+st.sidebar.markdown("**Show anomalies from:**")
+show_iso = st.sidebar.checkbox("Isolation Forest (systemic)", value=True)
+show_stl = st.sidebar.checkbox("STL decomposition (turning points)", value=True)
+show_prophet = st.sidebar.checkbox("Prophet (forecast deviation, GDP)", value=True)
 
-# --- LAYOUT PRINCIPAL ---
-st.title("🚨 Monitorização de Anomalias Macroeconómicas em Portugal")
+# --- MAIN LAYOUT ---
+st.title("🚨 Macroeconomic Anomaly Monitoring – Portugal")
 
-# --- SISTEMA DE ALERTA ---
-ultimo_ponto = df_final.iloc[-1]
-if ultimo_ponto['contagem_anomalias'] > 0:
-    st.error(f"**ALERTA:** Anomalia detetada no último trimestre disponível ({ultimo_ponto.name.strftime('%Y-%m-%d')})!")
+# --- ALERT SYSTEM (LATEST QUARTER) ---
+last_obs = df_final.iloc[-1]
+if last_obs["anomaly_count"] > 0:
+    st.error(
+        f"ALERT: An anomaly is detected in the latest available quarter "
+        f"({last_obs.name.strftime('%Y-%m-%d')})."
+    )
 
-st.markdown("Dashboard interativo para explorar anomalias em séries temporais económicas.")
+st.markdown(
+    "Interactive dashboard to explore anomalies in GDP, credit, and debt series for Portugal."
+)
 
-# --- GRÁFICO PRINCIPAL ---
-st.header(f"Análise Visual de Anomalias em: {lista_variaveis[variavel_selecionada_key]}")
+# --- MAIN CHART ---
+st.header(f"Visual anomaly analysis: {variable_labels[selected_variable]}")
 
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=df_final.index, y=df_final[variavel_selecionada_key], mode='lines', name=lista_variaveis[variavel_selecionada_key], line=dict(color='lightgrey', width=2)))
 
-if mostrar_isoforest:
-    df_anom = df_final[df_final['anomalia_isoforest'] == 1]
-    fig.add_trace(go.Scatter(x=df_anom.index, y=df_anom[variavel_selecionada_key], mode='markers', name='Anomalia: Isolation Forest', marker=dict(color='red', size=10, symbol='circle')))
-if mostrar_stl:
-    df_anom = df_final[df_final['anomalia_stl'] == 1]
-    fig.add_trace(go.Scatter(x=df_anom.index, y=df_anom[variavel_selecionada_key], mode='markers', name='Anomalia: STL', marker=dict(color='green', size=10, symbol='diamond')))
-if mostrar_prophet:
-    df_anom = df_final[df_final['anomalia_prophet'] == 1]
-    fig.add_trace(go.Scatter(x=df_anom.index, y=df_anom[variavel_selecionada_key], mode='markers', name='Anomalia: Prophet', marker=dict(color='purple', size=10, symbol='x')))
+# Base time series line
+fig.add_trace(
+    go.Scatter(
+        x=df_final.index,
+        y=df_final[selected_variable],
+        mode="lines",
+        name=variable_labels[selected_variable],
+        line=dict(color="lightgrey", width=2),
+    )
+)
 
-df_consenso = df_final[df_final['contagem_anomalias'] > 1]
-fig.add_trace(go.Scatter(x=df_consenso.index, y=df_consenso[variavel_selecionada_key], mode='markers', name='Consenso (≥2 modelos)', marker=dict(color='gold', size=16, symbol='star', line=dict(color='black', width=1))))
+# Isolation Forest anomalies
+if show_iso:
+    df_iso = df_final[df_final["anomaly_isoforest"] == 1]
+    fig.add_trace(
+        go.Scatter(
+            x=df_iso.index,
+            y=df_iso[selected_variable],
+            mode="markers",
+            name="Anomaly: Isolation Forest",
+            marker=dict(color="red", size=10, symbol="circle"),
+        )
+    )
 
-fig.update_layout(xaxis_title='Data', yaxis_title='Valor', legend_title='Legenda', template='plotly_white', height=500)
+# STL anomalies
+if show_stl:
+    df_stl = df_final[df_final["anomaly_stl"] == 1]
+    fig.add_trace(
+        go.Scatter(
+            x=df_stl.index,
+            y=df_stl[selected_variable],
+            mode="markers",
+            name="Anomaly: STL",
+            marker=dict(color="green", size=10, symbol="diamond"),
+        )
+    )
+
+# Prophet anomalies (dates are GDP-based but shown on any series for consistency)
+if show_prophet:
+    df_prophet_anom = df_final[df_final["anomaly_prophet"] == 1]
+    fig.add_trace(
+        go.Scatter(
+            x=df_prophet_anom.index,
+            y=df_prophet_anom[selected_variable],
+            mode="markers",
+            name="Anomaly: Prophet",
+            marker=dict(color="purple", size=10, symbol="x"),
+        )
+    )
+
+# Consensus anomalies (2 or more models)
+df_consensus = df_final[df_final["anomaly_count"] > 1]
+fig.add_trace(
+    go.Scatter(
+        x=df_consensus.index,
+        y=df_consensus[selected_variable],
+        mode="markers",
+        name="Consensus (≥ 2 models)",
+        marker=dict(
+            color="gold",
+            size=16,
+            symbol="star",
+            line=dict(color="black", width=1),
+        ),
+    )
+)
+
+fig.update_layout(
+    xaxis_title="Date",
+    yaxis_title="Value",
+    legend_title="Legend",
+    template="plotly_white",
+    height=500,
+)
+
 st.plotly_chart(fig, use_container_width=True)
 
-# --- ANÁLISE ESCRITA E TABELA DE DADOS ---
-with st.expander("Ver Análise Detalhada e Tabela de Anomalias"):
-    st.header("Interpretação dos Modelos")
-    st.markdown("""
-    A análise combina três modelos distintos para uma deteção robusta:
-    - **Isolation Forest (vermelho):** Deteta desequilíbrios na *relação* entre todas as variáveis. Ideal para encontrar anomalias sistémicas.
-    - **Decomposição STL (verde):** Identifica pontos de viragem e choques em *cada variável individualmente*.
-    - **Prophet (roxo):** Deteta anomalias ao comparar os dados reais do PIB com a sua *própria previsão*. É especialista em encontrar surpresas no crescimento económico.
-    - **Consenso (dourado):** Pontos detetados por múltiplos modelos, representando os eventos mais extremos e inequívocos.
-    """)
+# --- DETAILED ANALYSIS AND ANOMALY TABLE ---
+with st.expander("Detailed model description and anomaly table"):
+    st.header("How to interpret the models")
+    st.markdown(
+        """
+This dashboard combines three complementary anomaly detection methods:
 
-    st.header("Tabela Detalhada das Anomalias")
-    df_comparativo = df_final[df_final['contagem_anomalias'] > 0].copy()
-    colunas_tabela = ['pib', 'credito_empresas', 'credito_particulares', 'endividamento', 'anomalia_isoforest', 'anomalia_stl', 'anomalia_prophet', 'contagem_anomalias']
-    st.dataframe(df_comparativo.sort_values(by=['contagem_anomalias', 'data'], ascending=[False, True])[colunas_tabela])
+- **Isolation Forest (red markers):** detects systemic anomalies in the *joint behaviour* of GDP, credit and debt.  
+- **STL decomposition (green markers):** flags turning points and unusual movements within *each individual series*.  
+- **Prophet (purple markers, based on GDP):** identifies values that deviate significantly from a model-based GDP forecast.  
+- **Consensus (gold stars):** dates flagged by multiple models, corresponding to the strongest and most robust anomalies.
+        """
+    )
+
+    st.header("Anomaly summary table")
+    df_anomalies = df_final[df_final["anomaly_count"] > 0].copy()
+
+    table_columns = [
+        "gdp",
+        "corporate_credit",
+        "household_credit",
+        "total_debt",
+        "anomaly_isoforest",
+        "anomaly_stl",
+        "anomaly_prophet",
+        "anomaly_count",
+    ]
+
+    # Sort by highest consensus first, then by date
+    df_anomalies = (
+        df_anomalies.sort_values("anomaly_count", ascending=False).sort_index()
+    )
+
+    st.dataframe(df_anomalies[table_columns])
