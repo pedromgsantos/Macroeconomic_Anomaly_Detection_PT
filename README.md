@@ -84,7 +84,7 @@ Install Conda or Python, and ensure Git is available.
    conda activate anomalias_macro
    ```
    
-2.2 **Environement (Pip):**
+2.2 **Environment (Pip):**
    ```bash
    pip install -r requirements.txt
    ```
