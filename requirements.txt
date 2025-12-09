@@ -9,7 +9,7 @@ plotly
 holidays==0.24
 streamlit
 
-# Stack do Prophet – versões compatíveis entre si
+# Stack Prophet – versões compatíveis
 prophet==1.1.4
 cmdstanpy==1.0.8
 stanio==0.3.0
