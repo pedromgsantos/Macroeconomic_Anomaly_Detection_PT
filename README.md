@@ -1,4 +1,16 @@
+<<<<<<< HEAD
 # Macroeconomic Anomaly Detection for Portugal
+=======
+## 🌐 Ver em funcionamento
+
+Visita **anomalias_macro** em:
+
+➡️ [anomaliasmacropt.streamlit.app](https://anomaliasmacropt.streamlit.app/)  
+
+🧪 Explora o app e começa a detectar anomalias macro com **visualizações interativas** e modelos de previsão em tempo real!
+
+# Deteção de Anomalias na Macroeconomia Portuguesa
+>>>>>>> c7dc812428a0402c9d2ad9d3777ac4f4236eb7b6
 
 ## Objective
 
@@ -47,10 +59,17 @@ anomalias_macro_pt/
 │ ├── 02_anomaly_modelling.ipynb
 │ └── 03_comparative_analysis.ipynb
 │
+<<<<<<< HEAD
 ├── app.py
 ├── environment.yml
 ├── requirements.txt
 └── .gitignore
+=======
+├── .gitignore
+├── app.py # Script principal do dashboard Streamlit
+├── environment_dev.yml # Ficheiro para recriar o ambiente Conda
+└── requirements.txt # Ficheiro para instalar dependências com Pip
+>>>>>>> c7dc812428a0402c9d2ad9d3777ac4f4236eb7b6
 ```
 
 ## Technologies Used
@@ -74,6 +93,7 @@ Install Conda or Python, and ensure Git is available.
 
 1. Clone the repository:
 
+<<<<<<< HEAD
    ```bash
    git clone https://github.com/pedromgsantos/anomalias_macro_pt
    cd anomalias_macro_pt
@@ -85,6 +105,18 @@ Install Conda or Python, and ensure Git is available.
    conda env create -f environment.yml
    conda activate anomalias_macro
    ```
+=======
+2.  **Configurar o Ambiente (Pip):**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Executar o Dashboard Streamlit:**
+    Com o ambiente ativado, execute o seguinte comando no terminal:
+    ```bash
+    streamlit run app.py
+    ```
+>>>>>>> c7dc812428a0402c9d2ad9d3777ac4f4236eb7b6
 
 3. **Environement (Pip):**
 
