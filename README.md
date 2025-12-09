@@ -78,18 +78,18 @@ Install Conda or Python, and ensure Git is available.
    cd Macroeconomic_Anomaly_Detection_PT
    ```
 
-2. **Environment (Conda):**
+2.1 **Environment (Conda):**
    ```bash
    conda env create -f environment.yml
    conda activate anomalias_macro
    ```
-=======
-3. **Environement (Pip):**
+   
+2.2 **Environement (Pip):**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run steamlit dashboard:**
+3. **Run steamlit dashboard:**
    With the environment activated, run the following command:
    ```bash
    streamlit run app.py
