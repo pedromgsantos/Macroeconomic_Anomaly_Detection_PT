@@ -6,10 +6,9 @@ seaborn
 scikit-learn
 statsmodels
 plotly
-holidays==0.24
 streamlit
-
-# Stack Prophet – versões compatíveis
+shillelagh
 prophet==1.1.4
 cmdstanpy==1.0.8
 stanio==0.3.0
+holidays>=0.25
